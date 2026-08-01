@@ -30,3 +30,15 @@ export function formatIndianNumber(value: number | string): string {
 export function formatRupees(value: number | string): string {
   return `₹${formatIndianNumber(value)}`;
 }
+
+/**
+ * Format a quantity to strip unnecessary trailing zeros.
+ * e.g. 45.000 → "45", 12.500 → "12.5", 0.250 → "0.25"
+ */
+export function formatQuantity(value: number | string): string {
+  const num = typeof value === "string" ? parseFloat(value) : value;
+  if (isNaN(num)) return "0";
+  // parseFloat followed by toString automatically drops trailing decimal zeros
+  return num.toString();
+}
+

@@ -1,9 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, CheckCircle2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Dialog } from "@/components/ui/dialog";
 import { useApi } from "@/hooks/use-api";
+import { toast } from "sonner";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { formatQuantity } from "@/lib/format-indian";
 
 interface ReceiveStockDialogProps {
   open: boolean;
@@ -27,7 +30,6 @@ export function ReceiveStockDialog({ open, onClose, onSuccess }: ReceiveStockDia
   const { request } = useApi();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
 
   const [products, setProducts] = useState<ProductOption[]>([]);
   const [locations, setLocations] = useState<LocationOption[]>([]);
@@ -63,7 +65,6 @@ export function ReceiveStockDialog({ open, onClose, onSuccess }: ReceiveStockDia
   const resetForm = () => {
     setForm({ product_id: "", location_id: "", quantity: "", notes: "" });
     setError(null);
-    setSuccess(false);
   };
 
   const handleClose = () => { resetForm(); onClose(); };
@@ -87,8 +88,9 @@ export function ReceiveStockDialog({ open, onClose, onSuccess }: ReceiveStockDia
           notes: form.notes || null,
         }),
       });
-      setSuccess(true);
-      setTimeout(() => { handleClose(); onSuccess(); }, 800);
+      toast.success(`${formatQuantity(form.quantity)} units received`);
+      handleClose();
+      onSuccess();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to receive stock");
     } finally {
@@ -98,16 +100,10 @@ export function ReceiveStockDialog({ open, onClose, onSuccess }: ReceiveStockDia
 
   const inputClass = "w-full rounded-lg border border-white/10 bg-white/[.03] px-3 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-emerald-400/50 focus:outline-none focus:ring-1 focus:ring-emerald-400/30 transition";
   const labelClass = "block text-sm font-medium text-slate-300 mb-1.5";
-  const selectClass = "w-full rounded-lg border border-white/10 bg-white/[.03] px-3 py-2.5 text-sm text-white focus:border-emerald-400/50 focus:outline-none focus:ring-1 focus:ring-emerald-400/30 transition appearance-none";
 
   return (
     <Dialog open={open} onClose={handleClose} title="Stock Inward" description="Receive stock into a location.">
-      {success ? (
-        <div className="flex flex-col items-center py-6 text-emerald-400">
-          <CheckCircle2 className="size-12" />
-          <p className="mt-3 font-medium">Stock received successfully!</p>
-        </div>
-      ) : dataLoading ? (
+      {dataLoading ? (
         <div className="flex items-center justify-center py-12"><Loader2 className="size-6 animate-spin text-emerald-400" /></div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -116,10 +112,16 @@ export function ReceiveStockDialog({ open, onClose, onSuccess }: ReceiveStockDia
             {products.length === 0 ? (
               <p className="text-sm text-amber-400">No products in catalogue. Add a product first.</p>
             ) : (
-              <select className={selectClass} value={form.product_id} onChange={(e) => setForm({ ...form, product_id: e.target.value })}>
-                <option value="">Select product…</option>
-                {products.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.sku})</option>)}
-              </select>
+              <Select value={form.product_id} onValueChange={(val) => setForm({ ...form, product_id: val })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select product…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {products.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.name} ({p.sku})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             )}
           </div>
 
@@ -128,10 +130,16 @@ export function ReceiveStockDialog({ open, onClose, onSuccess }: ReceiveStockDia
             {locations.length === 0 ? (
               <p className="text-sm text-amber-400">No locations found. Add a location first.</p>
             ) : (
-              <select className={selectClass} value={form.location_id} onChange={(e) => setForm({ ...form, location_id: e.target.value })}>
-                <option value="">Select location…</option>
-                {locations.map((l) => <option key={l.id} value={l.id}>{l.name} ({l.location_type})</option>)}
-              </select>
+              <Select value={form.location_id} onValueChange={(val) => setForm({ ...form, location_id: val })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select location…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {locations.map((l) => (
+                    <SelectItem key={l.id} value={l.id}>{l.name} ({l.location_type})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             )}
           </div>
 

@@ -1,0 +1,28 @@
+# Dependencies and build artifacts
+node_modules/
+.next/
+coverage/
+dist/
+.turbo/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
+backend/.venv/
+
+# Environment/secrets
+.env
+.env.*
+!.env.example
+frontend/.env.local
+backend/.env
+
+# Local tooling
+.DS_Store
+*.log
+.idea/
+.vscode/
+*.tsbuildinfo

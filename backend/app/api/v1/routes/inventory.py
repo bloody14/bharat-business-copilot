@@ -27,7 +27,15 @@ class ProductInput(BaseModel):
         return value
 class SupplierInput(BaseModel): name:str=Field(min_length=2,max_length=160); contact_person:str=Field(min_length=2,max_length=120); phone:str=Field(pattern=r"^[+0-9 ()-]{8,20}$"); email:str|None=None; address:str|None=Field(default=None,max_length=1000)
 class LocationInput(BaseModel): name:str=Field(min_length=2,max_length=100); location_type:LocationType; is_active:bool=True
-class MovementInput(BaseModel): product_id:uuid.UUID; location_id:uuid.UUID; quantity:Decimal=Field(gt=0); notes:str|None=Field(default=None,max_length=500)
+class BaseMovementInput(BaseModel): product_id:uuid.UUID; location_id:uuid.UUID; notes:str|None=Field(default=None,max_length=500)
+class MovementInput(BaseMovementInput): quantity:Decimal=Field(gt=0)
+class AdjustmentInput(BaseMovementInput):
+    quantity:Decimal
+    @field_validator("quantity")
+    @classmethod
+    def non_zero(cls, value: Decimal) -> Decimal:
+        if value == Decimal("0"): raise ValueError("Quantity must not be zero")
+        return value
 class TransferInput(MovementInput): destination_location_id:uuid.UUID
 def product_json(p:Product, quantity:Decimal=Decimal("0")) -> dict:
     return {"id":str(p.id),"name":p.name,"sku":p.sku,"unit":p.unit.value,"hsn_sac":p.hsn_sac,"cost_price":str(p.cost_price),"selling_price":str(p.selling_price),"gst_rate":str(p.gst_rate),"reorder_level":str(p.reorder_level),"available_quantity":str(quantity),"is_active":p.is_active}
@@ -57,7 +65,7 @@ def create_location(data:LocationInput,principal:Principal=Depends(require_inven
     try: db.commit()
     except IntegrityError as error: db.rollback(); raise HTTPException(409,"Location already exists") from error
     db.refresh(item); return {"id":str(item.id),"name":item.name}
-def post_movement(data:MovementInput, kind:MovementType, principal:Principal, db:Session, direction:int=1, reference:uuid.UUID|None=None):
+def post_movement(data:MovementInput | AdjustmentInput, kind:MovementType, principal:Principal, db:Session, direction:int=1, reference:uuid.UUID|None=None):
     product=db.scalar(select(Product).where(Product.id==data.product_id,Product.organization_id==principal.organization_id)); location=db.scalar(select(InventoryLocation).where(InventoryLocation.id==data.location_id,InventoryLocation.organization_id==principal.organization_id,InventoryLocation.is_active==True))
     if not product or not location: raise HTTPException(404,"Product or active location not found")
     balance=db.scalar(select(InventoryBalance).where(InventoryBalance.organization_id==principal.organization_id,InventoryBalance.product_id==product.id,InventoryBalance.location_id==location.id).with_for_update())
@@ -69,7 +77,7 @@ def post_movement(data:MovementInput, kind:MovementType, principal:Principal, db
 def receipt(data:MovementInput,principal:Principal=Depends(require_inventory_write),db:Session=Depends(get_db)):
     item=post_movement(data,MovementType.receipt,principal,db); db.commit(); return {"id":str(item.id),"quantity_delta":str(item.quantity_delta)}
 @router.post("/inventory/adjustments",status_code=201)
-def adjustment(data:MovementInput,principal:Principal=Depends(require_inventory_write),db:Session=Depends(get_db)):
+def adjustment(data:AdjustmentInput,principal:Principal=Depends(require_inventory_write),db:Session=Depends(get_db)):
     item=post_movement(data,MovementType.adjustment,principal,db); db.commit(); return {"id":str(item.id)}
 @router.post("/inventory/transfers",status_code=201)
 def transfer(data:TransferInput,principal:Principal=Depends(require_inventory_write),db:Session=Depends(get_db)):

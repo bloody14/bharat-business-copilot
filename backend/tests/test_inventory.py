@@ -252,33 +252,32 @@ class TestAdjustments:
         assert movements[0]["type"] == "adjustment"
         assert Decimal(movements[0]["quantity_delta"]) == 3
 
-    def test_adjustment_only_positive_direction(self, client):
-        """Document the current Codex behavior: adjustments always add stock.
-
-        The ``MovementInput.quantity`` field requires ``gt=0``, and the
-        adjustment endpoint uses the default ``direction=1``.  There is
-        currently no way to decrease stock via adjustment.
-
-        This test locks in the existing behavior so Phase 2 can safely
-        change it with a clear before/after comparison.
-        """
+    def test_adjustment_can_decrease_stock(self, client):
+        """Phase 2 fix: Adjustments can now be negative to decrease stock."""
         pid = _create_product(client)
         lid = _create_location(client)
         _receipt(client, pid, lid, 10)
 
-        # quantity=0 is rejected by the schema
+        # quantity=0 is still rejected by the schema
         resp = client.post(
             "/api/v1/inventory/adjustments",
             json={"product_id": pid, "location_id": lid, "quantity": "0"},
         )
         assert resp.status_code == 422
 
-        # Negative quantity is rejected by the schema
+        # Negative quantity is accepted and reduces stock
         resp = client.post(
             "/api/v1/inventory/adjustments",
             json={"product_id": pid, "location_id": lid, "quantity": "-3"},
         )
-        assert resp.status_code == 422
+        assert resp.status_code == 201
+
+        products = client.get("/api/v1/products").json()
+        assert Decimal(products[0]["available_quantity"]) == 7
+
+        movements = client.get("/api/v1/inventory/movements").json()
+        deltas = sorted(Decimal(m["quantity_delta"]) for m in movements)
+        assert deltas == [-3, 10]
 
 
 # ═══════════════════════════════════════════════════════════════════════

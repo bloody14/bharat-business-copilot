@@ -14,7 +14,7 @@
     "test:watch": "vitest --environment jsdom"
   },
   "dependencies": {
-    "@clerk/nextjs": "^6.23.1",
+    "@clerk/nextjs": "^7.6.4",
     "@radix-ui/react-dialog": "^1.1.23",
     "@radix-ui/react-scroll-area": "^1.2.18",
     "@radix-ui/react-select": "^2.3.7",

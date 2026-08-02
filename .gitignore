@@ -26,3 +26,8 @@ backend/.env
 .idea/
 .vscode/
 *.tsbuildinfo
+
+# Local Databases
+*.db
+*.sqlite
+*.sqlite3

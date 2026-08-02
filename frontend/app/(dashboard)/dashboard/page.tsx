@@ -6,6 +6,7 @@ import { useApi } from "@/hooks/use-api";
 import { useAuth } from "@clerk/nextjs";
 import { formatQuantity } from "@/lib/format-indian";
 import Link from "next/link";
+import { CopilotSheet } from "@/components/dashboard/copilot-sheet";
 
 interface Movement {
   id: string;
@@ -30,6 +31,7 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [copilotOpen, setCopilotOpen] = useState(false);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -126,7 +128,10 @@ export default function DashboardPage() {
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">Your Business Pulse</h1>
           <p className="mt-2 text-sm text-muted-foreground">Here’s a calm start to your business day.</p>
         </div>
-        <button className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-4 py-2.5 text-sm font-medium text-emerald-400 transition hover:bg-emerald-500/20">
+        <button
+          onClick={() => setCopilotOpen(true)}
+          className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-4 py-2.5 text-sm font-medium text-emerald-400 transition hover:bg-emerald-500/20"
+        >
           <Sparkles className="size-4" />Ask Copilot
         </button>
       </div>
@@ -229,6 +234,8 @@ export default function DashboardPage() {
           </div>
         </article>
       </section>
+
+      <CopilotSheet open={copilotOpen} onOpenChange={setCopilotOpen} />
     </main>
   );
 }

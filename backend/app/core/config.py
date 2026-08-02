@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     clerk_issuer_url: str | None = None
     clerk_jwks_url: str | None = None
     clerk_audience: str | None = None
+    
+    gemini_api_key: str | None = None
+    gemini_model: str = "gemini-2.5-flash"
 
 
 @lru_cache

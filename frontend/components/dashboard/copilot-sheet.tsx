@@ -5,11 +5,13 @@ import { useCopilot } from "@/hooks/use-copilot";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Bot, User, Send } from "lucide-react";
+import { Bot, User, Send, Mic, MicOff } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import { ActionProposal } from "@/hooks/use-copilot";
+import { useSpeech, SpeechLang } from "@/hooks/use-speech";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 function CopilotActionCard({ proposal }: { proposal: ActionProposal }) {
   const { executeAction, cancelAction } = useCopilot();
@@ -101,8 +103,14 @@ interface CopilotSheetProps {
 
 export function CopilotSheet({ open, onOpenChange }: CopilotSheetProps) {
   const [input, setInput] = useState("");
+  const [speechLang, setSpeechLang] = useState<SpeechLang>("hi-IN");
   const { messages, isLoading, error, sendMessage } = useCopilot();
   const scrollRef = useRef<HTMLDivElement>(null);
+  
+  const { isSupported, isListening, startListening, stopListening } = useSpeech({
+    lang: speechLang,
+    onTranscriptChange: (text) => setInput(text)
+  });
 
   useEffect(() => {
     if (error) {
@@ -138,11 +146,22 @@ export function CopilotSheet({ open, onOpenChange }: CopilotSheetProps) {
     <Sheet open={open} onOpenChange={onOpenChange}>
       
       <SheetContent className="w-full sm:max-w-md flex flex-col h-full bg-slate-900 border-slate-800 p-0 text-slate-100">
-        <SheetHeader className="p-4 border-b border-slate-800 bg-slate-900/95 sticky top-0 z-10">
+        <SheetHeader className="p-4 border-b border-slate-800 bg-slate-900/95 sticky top-0 z-10 flex flex-row items-center justify-between">
           <SheetTitle className="flex items-center gap-2 text-slate-100">
             <Bot className="h-5 w-5 text-teal-400" />
             Bharat Business Copilot
           </SheetTitle>
+          {isSupported && (
+            <Select value={speechLang} onValueChange={(val: SpeechLang) => setSpeechLang(val)}>
+              <SelectTrigger className="w-24 h-8 text-xs bg-slate-800 border-slate-700 text-slate-300">
+                <SelectValue placeholder="Lang" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="hi-IN" className="text-xs">Hindi/Hinglish</SelectItem>
+                <SelectItem value="en-IN" className="text-xs">English</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
         </SheetHeader>
 
         <ScrollArea className="flex-1 p-4">
@@ -248,10 +267,25 @@ export function CopilotSheet({ open, onOpenChange }: CopilotSheetProps) {
             <Input
               value={input}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInput(e.target.value)}
-              placeholder="Ask about your inventory..."
-              className="flex-1 bg-slate-800 border-slate-700 focus-visible:ring-teal-500"
+              placeholder={isListening ? "Listening..." : "Ask about your inventory..."}
+              className={`flex-1 bg-slate-800 border-slate-700 focus-visible:ring-teal-500 ${isListening ? "border-teal-500/50" : ""}`}
               disabled={isLoading}
             />
+            {isSupported && (
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                className={`flex-shrink-0 border-slate-700 ${isListening ? "bg-red-900/40 text-red-400 hover:bg-red-900/60 hover:text-red-300 animate-pulse" : "bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200"}`}
+                onClick={() => {
+                  if (isListening) stopListening();
+                  else startListening();
+                }}
+                disabled={isLoading}
+              >
+                {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+              </Button>
+            )}
             <Button 
               type="submit" 
               size="icon" 

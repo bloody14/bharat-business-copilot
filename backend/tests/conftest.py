@@ -96,3 +96,17 @@ def client(db, as_principal):
     """
     as_principal()  # default: org_test_a, user_001, owner
     return TestClient(app)
+
+from app.domain.copilot.provider import MockProvider
+from app.api.v1.routes import copilot
+
+def _mock_config():
+    return get_settings() # ensure we just return a normal instance but we could mock keys if needed
+    
+@pytest.fixture
+def mock_provider_env(monkeypatch):
+    def set_mock_responses(responses):
+        def _fake_provider(api_key, model):
+            return MockProvider(responses)
+        monkeypatch.setattr(copilot, "GoogleGenAIProvider", _fake_provider)
+    return set_mock_responses

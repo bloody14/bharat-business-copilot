@@ -22,25 +22,10 @@ def seed_data(db: Session):
     db.commit()
     return {"product": p, "loc1": loc1, "loc2": loc2}
 
-def _mock_config():
-    return Settings(gemini_api_key="fake-gemini", gemini_model="fake-model")
-
 @pytest.fixture(autouse=True)
 def reset_circuit_breaker():
     from app.domain.copilot import service
     service._GEMINI_COOLDOWN_UNTIL = 0.0
-
-@pytest.fixture
-def mock_provider_env(monkeypatch):
-    app.dependency_overrides[get_settings] = _mock_config
-    
-    def set_mock_responses(responses):
-        def _fake_provider(api_key, model):
-            return MockProvider(responses)
-        monkeypatch.setattr(copilot, "GoogleGenAIProvider", _fake_provider)
-
-    yield set_mock_responses
-    app.dependency_overrides.pop(get_settings, None)
 
 def test_multilingual_inventory_query(client: TestClient, db: Session, mock_provider_env):
     mock_provider_env([
@@ -99,12 +84,10 @@ def test_conversation_isolation_between_users(client: TestClient, as_principal, 
             assert "Secret user A message" not in content
             return ProviderResponse(text="Inspected.")
             
-    app.dependency_overrides[get_settings] = _mock_config
     import app.api.v1.routes.copilot as c
     c.GoogleGenAIProvider = InspectProvider
     
     client.post("/api/v1/copilot/chat", json={"message": "Hello"})
-    app.dependency_overrides.pop(get_settings, None)
 
 def test_circuit_breaker(client: TestClient, monkeypatch):
     import time

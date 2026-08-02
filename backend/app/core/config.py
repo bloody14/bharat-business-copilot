@@ -16,6 +16,13 @@ class Settings(BaseSettings):
     
     gemini_api_key: str | None = None
     gemini_model: str = "gemini-2.5-flash"
+    
+    openrouter_api_key: str | None = None
+    openrouter_model: str = "openrouter/free"
+    
+    # Copilot Configuration
+    copilot_history_limit: int = 20
+    gemini_cooldown_seconds: int = 300
 
 
 @lru_cache

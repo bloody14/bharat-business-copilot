@@ -1,10 +1,22 @@
 import { useState } from "react";
 import { useApi } from "./use-api";
 
+export interface ActionProposal {
+  action_id: string;
+  action_type: string;
+  status: string;
+  expires_at: string;
+  payload: Record<string, unknown>;
+  display_title: string;
+  display_subtitle: string;
+  display_quantity: string;
+}
+
 export interface Message {
   id: string;
   role: "user" | "copilot";
   content: string;
+  actionProposals?: ActionProposal[];
 }
 
 export function useCopilot() {
@@ -31,6 +43,7 @@ export function useCopilot() {
         id: (Date.now() + 1).toString(),
         role: "copilot",
         content: response.answer,
+        actionProposals: response.action_proposals,
       };
 
       setMessages((prev) => [...prev, copilotMessage]);
@@ -40,6 +53,18 @@ export function useCopilot() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const executeAction = async (actionId: string) => {
+    return request(`/api/v1/copilot/actions/${actionId}/execute`, {
+      method: "POST",
+    });
+  };
+
+  const cancelAction = async (actionId: string) => {
+    return request(`/api/v1/copilot/actions/${actionId}/cancel`, {
+      method: "POST",
+    });
   };
 
   const clearChat = () => {
@@ -52,6 +77,8 @@ export function useCopilot() {
     isLoading,
     error,
     sendMessage,
+    executeAction,
+    cancelAction,
     clearChat,
   };
 }

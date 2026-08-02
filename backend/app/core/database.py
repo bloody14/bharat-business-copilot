@@ -13,6 +13,7 @@ class Base(DeclarativeBase):
 
 # Import model metadata before Alembic discovers Base.metadata.
 from app.domain.inventory import models as inventory_models  # noqa: E402,F401
+from app.domain.copilot import models as copilot_models  # noqa: E402,F401
 
 
 def get_db():

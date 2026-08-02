@@ -112,21 +112,21 @@ def test_copilot_service_isolation_unit(db_session, seed_data):
         ProviderResponse(text="Done")
     ])
     
-    service = CopilotService(provider=mock_provider, db=db_session, organization_id="org_a")
+    service = CopilotService(provider=mock_provider, db=db_session, principal=_mock_principal_a())
     # Instead of full chat, we can just test the tool execution directly:
     res_str = service._execute_tool(ToolCallRequest(name="lookup_product", arguments={"query": "Tata Tea"}))
-    assert "100" in res_str
-    assert "50" not in res_str # Should not see org B's 50 units
+    assert '"available_quantity": "100.000"' in res_str
+    assert '"available_quantity": "50.000"' not in res_str # Should not see org B's 50 units
 
     # Simulate Org B
-    service_b = CopilotService(provider=mock_provider, db=db_session, organization_id="org_b")
+    service_b = CopilotService(provider=mock_provider, db=db_session, principal=_mock_principal_b())
     res_str_b = service_b._execute_tool(ToolCallRequest(name="lookup_product", arguments={"query": "Tata Tea"}))
-    assert "50" in res_str_b
-    assert "100" not in res_str_b
+    assert '"available_quantity": "50.000"' in res_str_b
+    assert '"available_quantity": "100.000"' not in res_str_b
 
 def test_copilot_service_unapproved_tool(db_session):
     from app.domain.copilot.service import CopilotService
-    service = CopilotService(provider=MockProvider([]), db=db_session, organization_id="org_a")
+    service = CopilotService(provider=MockProvider([]), db=db_session, principal=_mock_principal_a())
     
     res = service._execute_tool(ToolCallRequest(name="delete_all_data", arguments={}))
     assert "error" in res
@@ -134,7 +134,7 @@ def test_copilot_service_unapproved_tool(db_session):
     
 def test_copilot_service_invalid_args(db_session):
     from app.domain.copilot.service import CopilotService
-    service = CopilotService(provider=MockProvider([]), db=db_session, organization_id="org_a")
+    service = CopilotService(provider=MockProvider([]), db=db_session, principal=_mock_principal_a())
     
     res = service._execute_tool(ToolCallRequest(name="lookup_product", arguments={})) # missing query
     assert "error" in res
@@ -149,7 +149,7 @@ def test_copilot_service_loop_limit(db_session):
     ] * 10
     
     mock_provider = MockProvider(infinite_responses)
-    service = CopilotService(provider=mock_provider, db=db_session, organization_id="org_a")
+    service = CopilotService(provider=mock_provider, db=db_session, principal=_mock_principal_a())
     
     res = service.handle_chat("Summarize inventory")
     assert "max tool calls reached" in res.answer

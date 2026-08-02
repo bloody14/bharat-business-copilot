@@ -65,24 +65,28 @@ def create_location(data:LocationInput,principal:Principal=Depends(require_inven
     try: db.commit()
     except IntegrityError as error: db.rollback(); raise HTTPException(409,"Location already exists") from error
     db.refresh(item); return {"id":str(item.id),"name":item.name}
-def post_movement(data:MovementInput | AdjustmentInput, kind:MovementType, principal:Principal, db:Session, direction:int=1, reference:uuid.UUID|None=None):
-    product=db.scalar(select(Product).where(Product.id==data.product_id,Product.organization_id==principal.organization_id)); location=db.scalar(select(InventoryLocation).where(InventoryLocation.id==data.location_id,InventoryLocation.organization_id==principal.organization_id,InventoryLocation.is_active==True))
-    if not product or not location: raise HTTPException(404,"Product or active location not found")
-    balance=db.scalar(select(InventoryBalance).where(InventoryBalance.organization_id==principal.organization_id,InventoryBalance.product_id==product.id,InventoryBalance.location_id==location.id).with_for_update())
-    if not balance: balance=InventoryBalance(organization_id=principal.organization_id,product_id=product.id,location_id=location.id,available_quantity=0); db.add(balance); db.flush()
-    delta=data.quantity*direction
-    if Decimal(str(balance.available_quantity))+delta<0: raise HTTPException(422,"Movement would create negative stock")
-    balance.available_quantity=Decimal(str(balance.available_quantity))+delta; movement=StockMovement(organization_id=principal.organization_id,product_id=product.id,location_id=location.id,movement_type=kind,quantity_delta=delta,reference_id=reference,notes=data.notes,created_by=principal.user_id); db.add(movement); db.flush(); return movement
+from app.domain.inventory.service import post_movement
+
 @router.post("/inventory/receipts",status_code=201)
 def receipt(data:MovementInput,principal:Principal=Depends(require_inventory_write),db:Session=Depends(get_db)):
-    item=post_movement(data,MovementType.receipt,principal,db); db.commit(); return {"id":str(item.id),"quantity_delta":str(item.quantity_delta)}
+    item=post_movement(data.product_id, data.location_id, data.quantity, data.notes, MovementType.receipt, principal, db)
+    db.commit()
+    return {"id":str(item.id),"quantity_delta":str(item.quantity_delta)}
+
 @router.post("/inventory/adjustments",status_code=201)
 def adjustment(data:AdjustmentInput,principal:Principal=Depends(require_inventory_write),db:Session=Depends(get_db)):
-    item=post_movement(data,MovementType.adjustment,principal,db); db.commit(); return {"id":str(item.id)}
+    item=post_movement(data.product_id, data.location_id, data.quantity, data.notes, MovementType.adjustment, principal, db)
+    db.commit()
+    return {"id":str(item.id)}
+
 @router.post("/inventory/transfers",status_code=201)
 def transfer(data:TransferInput,principal:Principal=Depends(require_inventory_write),db:Session=Depends(get_db)):
     if data.location_id==data.destination_location_id: raise HTTPException(422,"Transfer locations must differ")
-    ref=uuid.uuid4(); post_movement(data,MovementType.transfer_out,principal,db,-1,ref); post_movement(MovementInput(product_id=data.product_id,location_id=data.destination_location_id,quantity=data.quantity,notes=data.notes),MovementType.transfer_in,principal,db,1,ref); db.commit(); return {"transfer_id":str(ref)}
+    ref=uuid.uuid4()
+    post_movement(data.product_id, data.location_id, data.quantity, data.notes, MovementType.transfer_out, principal, db, -1, ref)
+    post_movement(data.product_id, data.destination_location_id, data.quantity, data.notes, MovementType.transfer_in, principal, db, 1, ref)
+    db.commit()
+    return {"transfer_id":str(ref)}
 @router.get("/inventory/movements")
 def movements(principal:Principal=Depends(get_principal),db:Session=Depends(get_db)):
     rows=db.scalars(select(StockMovement).where(StockMovement.organization_id==principal.organization_id).order_by(StockMovement.occurred_at.desc())).all(); return [{"id":str(m.id),"product_id":str(m.product_id),"location_id":str(m.location_id),"type":m.movement_type.value,"quantity_delta":str(m.quantity_delta),"reference_id":str(m.reference_id) if m.reference_id else None,"occurred_at":m.occurred_at} for m in rows]

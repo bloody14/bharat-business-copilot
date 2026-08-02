@@ -9,6 +9,90 @@ import { Bot, User, Send } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
+import { ActionProposal } from "@/hooks/use-copilot";
+
+function CopilotActionCard({ proposal }: { proposal: ActionProposal }) {
+  const { executeAction, cancelAction } = useCopilot();
+  const [status, setStatus] = useState(proposal.status);
+  const [isExecuting, setIsExecuting] = useState(false);
+
+  const handleExecute = async () => {
+    setIsExecuting(true);
+    try {
+      await executeAction(proposal.action_id);
+      setStatus("executed");
+      toast.success("Action executed successfully.");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to execute action.");
+    } finally {
+      setIsExecuting(false);
+    }
+  };
+
+  const handleCancel = async () => {
+    setIsExecuting(true);
+    try {
+      await cancelAction(proposal.action_id);
+      setStatus("cancelled");
+      toast.info("Action cancelled.");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to cancel action.");
+    } finally {
+      setIsExecuting(false);
+    }
+  };
+
+  if (status === "executed") {
+    return (
+      <div className="bg-teal-900/30 border border-teal-800/50 rounded-lg p-4">
+        <p className="text-teal-400 font-medium text-sm mb-1">{proposal.display_title}</p>
+        <p className="text-teal-200/70 text-xs">Successfully executed.</p>
+      </div>
+    );
+  }
+
+  if (status === "cancelled") {
+    return (
+      <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-4 opacity-50">
+        <p className="text-slate-400 font-medium text-sm mb-1">{proposal.display_title}</p>
+        <p className="text-slate-500 text-xs">Cancelled.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-slate-800 border border-slate-600 rounded-lg p-4 shadow-lg">
+      <div className="mb-3">
+        <h4 className="font-semibold text-slate-100">{proposal.display_title}</h4>
+        <p className="text-slate-400 text-xs mt-1">{proposal.display_subtitle}</p>
+      </div>
+      <div className="flex justify-between items-end">
+        <div className="text-lg font-bold text-teal-400">
+          {proposal.display_quantity}
+        </div>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="border-slate-600 text-slate-300 hover:bg-slate-700 h-8"
+            onClick={handleCancel}
+            disabled={isExecuting}
+          >
+            Cancel
+          </Button>
+          <Button 
+            size="sm" 
+            className="bg-teal-600 hover:bg-teal-700 text-white h-8"
+            onClick={handleExecute}
+            disabled={isExecuting}
+          >
+            {isExecuting ? "Confirming..." : "Confirm"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 interface CopilotSheetProps {
   open: boolean;
@@ -124,6 +208,16 @@ export function CopilotSheet({ open, onOpenChange }: CopilotSheetProps) {
                         >
                           {m.content}
                         </ReactMarkdown>
+                        {m.actionProposals && m.actionProposals.length > 0 && (
+                          <div className="mt-4 space-y-3">
+                            {m.actionProposals.map((proposal) => (
+                              <CopilotActionCard 
+                                key={proposal.action_id} 
+                                proposal={proposal} 
+                              />
+                            ))}
+                          </div>
+                        )}
                       </div>
                     ) : (
                       m.content

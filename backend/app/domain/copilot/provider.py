@@ -118,20 +118,18 @@ class GoogleGenAIProvider(CopilotProvider):
         
         # Parse the response
         text = ""
+        try:
+            text = response.text or ""
+        except ValueError:
+            pass
+            
         tool_calls = []
-        if response.parts:
-            for part in response.parts:
-                if part.text:
-                    text += part.text
-                if part.function_call:
-                    args = {}
-                    if part.function_call.args:
-                        # part.function_call.args is a dict
-                        args = part.function_call.args
-                    tool_calls.append(ToolCallRequest(
-                        name=part.function_call.name,
-                        arguments=args
-                    ))
+        if response.function_calls:
+            for fc in response.function_calls:
+                tool_calls.append(ToolCallRequest(
+                    name=fc.name,
+                    arguments=fc.args if fc.args else {}
+                ))
                     
         return ProviderResponse(text=text if text else None, tool_calls=tool_calls)
 

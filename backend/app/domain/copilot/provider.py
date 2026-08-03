@@ -93,8 +93,7 @@ class GoogleGenAIProvider(CopilotProvider):
         config = types.GenerateContentConfig(
             temperature=0.0,
             system_instruction=system_msg,
-            max_output_tokens=300,
-            thinking_config=types.ThinkingConfig(thinking_budget=10)
+            max_output_tokens=300
         )
         if gemini_tools:
             config.tools = gemini_tools
